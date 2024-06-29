@@ -12,7 +12,7 @@ class LSTM(nn.Module):
         self.batch_size = batch_size
         self.use_gpu = use_gpu
 
-        self.word_embeddings = nn.Embedding(transaction_size, embedding_dim)
+        self.embedding_layer = nn.Embedding(transaction_size, embedding_dim)
         self.hidden = self.init_hidden()
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers)
         self.fc = nn.Sequential(
@@ -32,7 +32,7 @@ class LSTM(nn.Module):
         return (h0, c0)
 
     def forward(self, sentence):
-        embeds = self.word_embeddings(sentence)
+        embeds = self.embedding_layer(sentence)
         x = embeds.view(len(sentence), self.batch_size, -1)
         lstm_out, self.hidden = self.lstm(x, self.hidden)
         y  = self.fc(lstm_out[-1])

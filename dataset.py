@@ -2,9 +2,9 @@ from torch.utils.data import Dataset
 import torch
 
 class Dataset(Dataset):
-    def __init__(self, X, y):
-        self.X = X
-        self.y = y
+    def __init__(self, X, y, device):
+        self.X = X.to(device)
+        self.y = y.to(device)
         
     def __getitem__(self, index):
         X = self.X[index]
