@@ -1,7 +1,9 @@
 import wandb
+import torch
 from tqdm.notebook import tqdm
 from tools.adjust_learning_rate import adjust_learning_rate
 from tools.validate import validate
+from sklearn.metrics import f1_score
 
 from IPython.core.interactiveshell import InteractiveShell
 InteractiveShell.ast_node_interactivity = "last_expr"
@@ -28,19 +30,28 @@ def train(model, train_loader, val_loader, criterion, optimizer, scheduler, conf
             train_loss = train_batch(X_, y_, model, optimizer, criterion, config.device)
             running_train_loss += train_loss.item()
             
+            # Log first training loss
+            if epoch == 0 and i == 0:
+                wandb.log({"train_loss": train_loss}, step=current_batch)
+                model.eval()
+                val_accuracy, f1_score_val = validate(model, val_loader, config.device)
+                model.train()
+                wandb.log({"val_accuracy": val_accuracy, "epoch": epoch+1, "f1_score_val": f1_score_val})
+            
             if (i+1) % config.log_step == 0:
                 average_train_loss = running_train_loss/config.log_step
                 print (f'Epoch [{epoch+1}/{config.num_epochs}], Step [{i+1}/{n_total_steps}], Train Loss: {average_train_loss:.4f}')
-                # Calculate validation accuracy
+                # Log training metrics
                 train_log(average_train_loss, current_batch, epoch, optimizer.param_groups[0]['lr'])
                 running_train_loss, average_train_loss = 0.0, 0.0
         # Calculate validation accuracy
         model.eval()
-        val_accuracy = validate(model, val_loader, config.device)
+        val_accuracy, f1_score_val = validate(model, val_loader, config.device)
         model.train()
-        wandb.log({"val_accuracy": val_accuracy, "epoch": epoch+1})
+        wandb.log({"val_accuracy": val_accuracy, "epoch": epoch+1, "f1_score_val": f1_score_val})
         print(f"Validation Accuracy: {val_accuracy:%}")
         print('')
+        # Decrease the learning rate regarding config.gamma
         scheduler.step()
 
 
@@ -49,7 +60,7 @@ def train_batch(X_, y_, model, optimizer, criterion, device):
     
     # Forward pass ➡
     outputs = model(X_)
-    train_loss = criterion(outputs, y_.view(-1, 1))
+    train_loss = criterion(outputs.to(device), y_.view(-1, 1))
     
     # Backward pass ⬅
     optimizer.zero_grad()
