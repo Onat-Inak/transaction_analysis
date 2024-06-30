@@ -15,13 +15,17 @@ class RNN(nn.Module):
         
         # initialize embedding, rnn and fully connected layers
         self.embedding_layer = nn.Embedding(self.transaction_size, self.embedding_dim, device=self.device)
+        self.ln1 = nn.LayerNorm(self.embedding_dim)
         self.rnn = nn.RNN(input_size=self.embedding_dim, hidden_size=self.hidden_dim, 
                           num_layers=self.num_layers, batch_first=self.batch_first, device=self.device)
         # -> in : (batch_size, sequence_length)
         # -> out: (batch_size, sequence_length, embedding_dim)
+        self.ln2 = nn.LayerNorm(self.hidden_dim)
         self.fc = nn.Sequential(
-            nn.Linear(hidden_dim, self.fc_hidden_dim, device=self.device),  # Adjust the hidden layer size as needed
+            nn.Linear(hidden_dim, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
+            nn.LayerNorm(self.fc_hidden_dim), 
             nn.ReLU(),  # Add ReLU activation
+            nn.Dropout(p=0.75),
             nn.Linear(self.fc_hidden_dim, 1, device=self.device),  # Output layer
             nn.Sigmoid() # Add sigmoid activation
         )
@@ -30,10 +34,12 @@ class RNN(nn.Module):
     def forward(self, x):
         
         x_embed = self.embedding_layer(x)
+        x_embed = self.ln1(x_embed)
         
         h0 = torch.zeros(self.num_layers, x_embed.shape[0], self.hidden_dim).to(self.device)
         # print(h0.requires_grad)
         h_t, _ = self.rnn(x_embed.to(self.device), h0) # (batch_size, sequence_length/ number of total hidden states, hidden_dim)
+        h_t = self.ln2(h_t)
         out = self.fc(h_t[:, -1, :]) # (batch_size, 1)
         return out.to(self.device)
         

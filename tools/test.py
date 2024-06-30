@@ -1,5 +1,8 @@
 import wandb
 import torch
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import f1_score
+from sklearn.metrics import classification_report
 
 def test(model, test_loader, device):
     model.eval()
@@ -9,14 +12,19 @@ def test(model, test_loader, device):
         for X_, y_ in test_loader:
             X_, y_ = X_.to(device), y_.to(device)
             outputs = model(X_)
-            predicted = torch.round(outputs)
-            print("predicted: ", torch.transpose(predicted[:10], 0, 1))
-            print("y_: ", torch.transpose(y_.view(-1,1)[:10], 0, 1))
+            # print("outputs.shape: ", outputs.shape)
+            predictions = torch.round(outputs)
+            # print("predictions: ", torch.transpose(predictions[:20], 0, 1))
+            # print("y_: ", torch.transpose(y_.view(-1,1)[:20], 0, 1))
             total += y_.size(0)
-            correct += (predicted == y_.view(-1,1)).sum().item()
-
-        print(f"Accuracy of the model on the {total} " +
+            correct += (predictions == y_.view(-1,1)).sum().item()
+            cm = confusion_matrix(y_.view(-1,1).to('cpu'), predictions.to('cpu'))
+            ConfusionMatrixDisplay(cm).plot()
+            # f1 = f1_score(y_.view(-1,1).to('cpu'), predictions.to('cpu'))
+        print(f"Accuracy of the model on {total} " +
               f"transactions in test data: {correct / total:%}")
+        # print('F1-Score: ', f1)
+        print(classification_report(y_.view(-1,1).to('cpu'), predictions.to('cpu')))
         
         wandb.log({"test_accuracy": correct / total})
 

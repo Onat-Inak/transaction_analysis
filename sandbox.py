@@ -15,6 +15,9 @@ num_layers = 2
 num_epochs = 50
 learning_rate = 0.001
 
-# model = RNN(312, embedding_dim, hidden_dim, num_layers, device, num_classes = 1, batch_first = True, fc_hidden_dim = 128)
-model = torch.load('experiments/RNN/model.pt')
+a = 11 * torch.ones([1])
+print(a)
+print(a.shape)
+
+model = RNN(312, embedding_dim, hidden_dim, num_layers, device, num_classes = 1, batch_first = True, fc_hidden_dim = 128)
 model(torch.zeros((100,10)), device)
