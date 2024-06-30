@@ -22,25 +22,27 @@ def train(model, train_loader, val_loader, criterion, optimizer, scheduler, conf
         model.train()
         if config.lr_step_decay:
             optimizer = adjust_learning_rate(optimizer, epoch, config.learning_rate, config.lr_update_step)
-        for i, (X_, y_) in enumerate(train_loader):
+        for batch, (X_, y_) in enumerate(train_loader):
             seen_transactions += len(X_)
             current_batch += 1
             
-            # Calculate training loss in the corresponding batch
-            train_loss = train_batch(X_, y_, model, optimizer, criterion, config.device)
-            running_train_loss += train_loss.item()
-            
-            # Log first training loss
-            if epoch == 0 and i == 0:
-                wandb.log({"train_loss": train_loss}, step=current_batch)
+            if epoch == 0 and batch == 0:
                 model.eval()
                 val_accuracy, f1_score_val = validate(model, val_loader, config.device)
                 model.train()
                 wandb.log({"val_accuracy": val_accuracy, "epoch": epoch+1, "f1_score_val": f1_score_val})
             
-            if (i+1) % config.log_step == 0:
+            # Calculate training loss in the corresponding batch
+            train_loss = train_batch(X_, y_, model, optimizer, criterion, config)
+            running_train_loss += train_loss.item()
+            
+            # Log first training loss
+            if epoch == 0 and batch == 0:
+                wandb.log({"train_loss": train_loss})
+            
+            if (batch+1) % config.log_step == 0:
                 average_train_loss = running_train_loss/config.log_step
-                print (f'Epoch [{epoch+1}/{config.num_epochs}], Step [{i+1}/{n_total_steps}], Train Loss: {average_train_loss:.4f}')
+                print (f'Epoch [{epoch+1}/{config.num_epochs}], Step [{batch+1}/{n_total_steps}], Train Loss: {average_train_loss:.4f}')
                 # Log training metrics
                 train_log(average_train_loss, current_batch, epoch, optimizer.param_groups[0]['lr'])
                 running_train_loss, average_train_loss = 0.0, 0.0
@@ -55,16 +57,19 @@ def train(model, train_loader, val_loader, criterion, optimizer, scheduler, conf
         scheduler.step()
 
 
-def train_batch(X_, y_, model, optimizer, criterion, device):
-    X_, y_ = X_.to(device), y_.to(device)
-    
+def train_batch(X_, y_, model, optimizer, criterion, config):
+    X_, y_ = X_.to(config.device), y_.to(config.device)
     # Forward pass ➡
     outputs = model(X_)
-    train_loss = criterion(outputs.to(device), y_.view(-1, 1))
+    train_loss = criterion(outputs.to(config.device), y_.view(-1, 1))
     
     # Backward pass ⬅
     optimizer.zero_grad()
     train_loss.backward()
+    
+    # Apply gradient clipping if config.grad_clip not None
+    if config.apply_grad_clip == True:
+        torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_clip)
 
     # Step with optimizer
     optimizer.step()
