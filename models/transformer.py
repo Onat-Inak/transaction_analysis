@@ -27,6 +27,7 @@ class PositionalEmbedding(nn.Module):
 # A forcasting model
 class TransformerClassifier(torch.nn.Module):
     def __init__(self, 
+                 batch_size = 900,
                  transaction_size = 312,
                  seq_len = 10,
                  embedding_dim = 32,
@@ -45,6 +46,7 @@ class TransformerClassifier(torch.nn.Module):
         super(TransformerClassifier, self).__init__()
 
         # Set Class-level Parameters
+        self.batch_size = batch_size
         self.transaction_size = transaction_size
         self.seq_len = seq_len
         self.embedding_dim = embedding_dim
@@ -94,18 +96,29 @@ class TransformerClassifier(torch.nn.Module):
                                                       enable_nested_tensor = True,
                                                       mask_check = True)
         # 1x1 Conv to reduce dimension
-        # self.conv1d = torch.nn.Conv1d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros', device=None, dtype=None)
+        self.conv1d = torch.nn.Conv1d(self.seq_len * self.d_model,
+                                      self.d_model,
+                                      1, # kernel_size
+                                      stride=1,
+                                      padding=0,
+                                      dilation=1,
+                                      groups=1,
+                                      bias=True,
+                                      padding_mode='zeros',
+                                      device=self.device,
+                                      dtype=None)
 
         # Classification Layer
         self.fc = nn.Sequential(
-            nn.Linear(self.d_model * self.seq_len, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
+            # nn.Linear(self.d_model * self.seq_len, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
+            nn.Linear(self.d_model, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
             nn.ReLU(),  # Add ReLU activation
             nn.Dropout(p=0.5),
-            # nn.Linear(self.fc_hidden_dim, 2 * self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
-            # nn.ReLU(),  # Add ReLU activation
-            # nn.Dropout(p=0.5),
-            # nn.Linear(2 * self.fc_hidden_dim, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
-            # nn.ReLU(),  # Add ReLU activation
+            nn.Linear(self.fc_hidden_dim, 2 * self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
+            nn.ReLU(),  # Add ReLU activation
+            nn.Dropout(p=0.5),
+            nn.Linear(2 * self.fc_hidden_dim, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
+            nn.ReLU(),  # Add ReLU activation
             nn.Linear(self.fc_hidden_dim, 1, device=self.device),  # Output layer
             nn.Sigmoid() # Add sigmoid activation
         )
@@ -113,7 +126,7 @@ class TransformerClassifier(torch.nn.Module):
     def forward(self, x):
         input_embed = self.input_embedding(x)
         pos_embed = self.position_embedding(torch.arange(x.shape[1], device=self.device))
-        x = input_embed + pos_embed.unsqueeze(0).expand(900, -1, -1)
+        x = input_embed + pos_embed.unsqueeze(0).expand(self.batch_size, -1, -1)
         
         if self.is_causal:
             # src_mask = self.create_lower_triangular_mask()
@@ -123,8 +136,16 @@ class TransformerClassifier(torch.nn.Module):
             src_mask = None
         
         x = self.transformer_encoder(x.to(self.device), mask = src_mask, is_causal=self.is_causal)
-        print('self.seq_len*self.d_model: ', self.seq_len * self.d_model)
-        out = self.fc(x.reshape((-1, self.seq_len * self.d_model)))
+        # print('x.reshape((-1, self.seq_len * self.d_model)).shape: ', x.reshape((-1, self.seq_len * self.d_model)).shape)
+        
+        # Flatten x 
+        # out = self.fc(x.reshape((-1, self.seq_len * self.d_model)))
+        
+        # Apply 1x1 Conv to x to reduce dimension
+        x = x.reshape((-1, self.seq_len * self.d_model))
+        # print("x.unsqueeze(2).shape: ", x.unsqueeze(2).shape)
+        x = self.conv1d(x.unsqueeze(2))
+        out = self.fc(torch.squeeze(x, dim=2))
         return out
     
     def create_lower_triangular_mask(self):
