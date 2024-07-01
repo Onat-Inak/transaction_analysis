@@ -23,9 +23,9 @@ class GRU(nn.Module):
         self.ln2 = nn.LayerNorm(self.hidden_dim)
         self.fc = nn.Sequential(
             nn.Linear(hidden_dim, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
-            nn.LayerNorm(self.fc_hidden_dim), 
+            # nn.LayerNorm(self.fc_hidden_dim), 
             nn.ReLU(),  # Add ReLU activation
-            nn.Dropout(p=0.5),
+            # nn.Dropout(p=0.5),
             nn.Linear(self.fc_hidden_dim, 1, device=self.device),  # Output layer
             nn.Sigmoid() # Add sigmoid activation
         )

@@ -25,7 +25,7 @@ class LSTM(nn.Module):
         # -> out: (batch_size, sequence_length, embedding_dim)
         self.ln2 = nn.LayerNorm(self.hidden_dim)
         self.fc = nn.Sequential(
-            nn.Linear(hidden_dim, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
+            nn.Linear(self.hidden_dim, self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed
             nn.ReLU(),  # Add ReLU activation
             nn.Dropout(p=0.5),
             # nn.Linear(self.fc_hidden_dim, 2 * self.fc_hidden_dim, device=self.device), # Adjust the hidden layer size as needed

@@ -22,6 +22,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # model = RNN(312, embedding_dim, hidden_dim, num_layers, device, num_classes = 1, batch_first = True, fc_hidden_dim = 128)
 # model(torch.zeros((100,10)), device)
 
-a = 100/30
-a = torch.tensor(a)
-print(a)
+m = nn.Conv1d(16, 33, 1, stride=1)
+input = torch.randn(20, 16, 50)
+output = m(input)
+print(output.shape)
