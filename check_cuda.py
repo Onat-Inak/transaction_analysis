@@ -12,4 +12,4 @@ if cuda_available:
     device_name = torch.cuda.get_device_name(current_device)
     print(f"Current CUDA device: {current_device} ({device_name})")
 else:
-    print("CUDA is not available.")
+    print("CUDA is not available!")
