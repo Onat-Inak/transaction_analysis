@@ -5,7 +5,7 @@ cuda_available = torch.cuda.is_available()
 
 if cuda_available:
     # Print the number of available GPUs
-    print(f"CUDA is available. Number of GPUs: {torch.cuda.device_count()}")
+    print(f"CUDA is available! \n Number of GPUs: {torch.cuda.device_count()}")
     # Get the current CUDA device
     current_device = torch.cuda.current_device()
     # Get the name of the current device
